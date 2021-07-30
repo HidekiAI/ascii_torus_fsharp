@@ -23,8 +23,8 @@
 //          .,~~;;;========;;;:~-.
 //              ..,--------,*/
 //
-// There is an optimized version which does not call math-libs, but for this
-// port, it would be more straight-forward to use the one  with cos/sin libs
+// Port: Hideki A. Ikeda <HidekiAI@CodeMonkeyNinja.dev>
+// 2021-July
 //
 // NOTE: all personal comments and notes are on my RUST (ascii_torust) side
 //       personal joke is I've yet to encounter legible F# code that I can comprehend in a glance...
