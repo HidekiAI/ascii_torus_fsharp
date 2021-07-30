@@ -34,27 +34,27 @@ open System
 let main argv =
     let pixels = ".,-~:;=!*#$@"
 
-    let screen_width = 80.0
-    let screen_height = 22.0
-    let screen_center_x = screen_width / 2.0
-    let screen_center_y = screen_height / 2.0
+    let screen_width = 80
+    let screen_height = 22
+    let screen_center_x = screen_width / 2
+    let screen_center_y = screen_height / 2
     let char_space = ' '
     let char_line_feed = Convert.ToChar(10)
-    let screen_dim = (screen_width * (screen_height + 1.0))
-    let torus_midpoint_z = 10.0
+    let screen_dim = (screen_width * (screen_height + 1))
+    //let torus_midpoint_z = 10.0
     let theta_rotate_steps = 0.07
     let phi_rotate_steps = 0.02
-    let inner_radius = 1.0
-    let outer_radius = 2.0
+    //let inner_radius = 1.0
+    //let outer_radius = 2.0
     let two_pi = 2.0 * 3.14159265
-    let midpoint_screen_projection_z = torus_midpoint_z / 2.0
+    //let midpoint_screen_projection_z = torus_midpoint_z / 2.0
     let mutable mut_a = 0.0
     let mutable mut_b = 0.0
     let mutable mut_phi = 0.0
     let mutable mut_theta = 0.0
-    let dim_size = screen_dim + (screen_width) + 2.0
-    let mutable mut_z_buff: float array = Array.zeroCreate (int dim_size) //vec![0.0; dim_size]
-    let mutable mut_render_buff: char array = Array.zeroCreate (int dim_size) //vec![char_space; dim_size]
+    let dim_size = screen_dim + (screen_width) + 2
+    let mutable mut_z_buff: float array = Array.zeroCreate dim_size //vec![0.0; dim_size]
+    let mutable mut_render_buff: char array = Array.zeroCreate dim_size //vec![char_space; dim_size]
     printfn ("\x1b[2J")
     let mutable outerLoop = false
     let mutable innerLoop = false
@@ -70,74 +70,42 @@ let main argv =
         let sin_b = Math.Sin mut_b
         outerLoop <- false
 
-        while outerLoop = false do
+        while not outerLoop do
             let cos_theta = Math.Cos mut_theta
             let sin_theta = Math.Sin mut_theta
             mut_phi <- 0.0
             innerLoop <- false
 
-            while innerLoop = false do
+            while not innerLoop do
                 let sin_phi = Math.Sin mut_phi
                 let cos_phi = Math.Cos mut_phi
-                let h1 = cos_theta + 2.0
-
-                let h2 =
-                    cos_theta * (outer_radius + inner_radius)
-
-                let h = h1
+                let h = cos_theta + 2.0
                 let _t = sin_phi * h * cos_a - sin_theta * sin_a
 
-                let _D =
+                let zDepth =
                     1.0
                     / (sin_phi * h * sin_a + sin_theta * cos_a + 5.0)
 
-                let local_z =
-                    sin_phi * h * sin_a
-                    + sin_theta * cos_a
-                    + midpoint_screen_projection_z
-
-                let one_over_z = 1.0 / local_z
                 let t = sin_phi * h * cos_a - sin_theta * sin_a
 
-                let _x =
-                    (40.0
-                     + 30.0 * _D * (cos_phi * h * cos_b - _t * sin_b))
+                let screenX =
+                    int (
+                        (float screen_center_x
+                         + 30.0 * zDepth * (cos_phi * h * cos_b - _t * sin_b))
+                    )
 
-                let projection_x =
-                    screen_center_x
-                    + 30.0
-                      * one_over_z
-                      * (cos_phi * h * cos_b - t * sin_b)
+                let screenY =
+                    int (
+                        (float (screen_center_y + 1)
+                         + 15.0 * zDepth * (cos_phi * h * sin_b + _t * cos_b))
+                    )
 
-                let _y =
-                    (12.0
-                     + 15.0 * _D * (cos_phi * h * sin_b + _t * cos_b))
+                let pixelIndex = screenX + (int screen_width) * screenY
 
-                let projection_y =
-                    screen_center_y
-                    + 15.0
-                      * one_over_z
-                      * (cos_phi * h * sin_b + t * cos_b)
+                if pixelIndex >= mut_render_buff.Length then
+                    failwithf "Buffer overflow: Index for {%d},{%d} exceeds {%d}" screenX screenY mut_render_buff.Length
 
-                let pos_xy =
-                    projection_x + (screen_width * projection_y)
-
-                let us_pos_xy = int pos_xy
-
-                let luminance =
-                    (sin_theta * sin_a - sin_phi * cos_theta * cos_a)
-                    * cos_b
-                    - sin_phi * cos_theta * sin_a
-                    - sin_theta * cos_a
-                    - cos_phi * cos_theta * sin_b
-
-                let luminance_index = 8.0 * luminance
-                let depth = mut_z_buff.[us_pos_xy]
-                let _o = int (_x + 80.0 * _y)
-
-                if _o >= mut_render_buff.Length then
-                    failwithf "Index for {%f},{%f} exceeds {%d}" _x _y mut_render_buff.Length
-
+                // OK, just one (and only one) comment: This ranges _N to 0..11 to calculate the luminance which index to array pixels[]
                 let _N =
                     8.0
                     * ((sin_theta * sin_a - sin_phi * cos_theta * cos_a)
@@ -145,16 +113,16 @@ let main argv =
                        - sin_phi * cos_theta * sin_a
                        - sin_theta * cos_a
                        - cos_phi * cos_theta * sin_b)
-
-                if 22.0 > _y
-                   && _y > 0.0
-                   && _x > 0.0
-                   && 80.0 > _x
-                   && _D > mut_z_buff.[_o] then
-                    mut_z_buff.[_o] <- _D
-                    let _bi = if _N > 0.0 then int _N else 0
-                    let _pixel = pixels.[_bi]
-                    mut_render_buff.[_o] <- _pixel
+                // OK, I lied...  Only raycast if surface normal is not 0 (and positive)
+                if (int screen_height) > screenY
+                   && screenY > 0
+                   && screenX > 0
+                   && (int screen_width) > screenX
+                   && zDepth > mut_z_buff.[pixelIndex] then
+                    mut_z_buff.[pixelIndex] <- zDepth
+                    let bi = if _N > 0.0 then int _N else 0
+                    let pixel = pixels.[bi]
+                    mut_render_buff.[pixelIndex] <- pixel
 
                 mut_phi <- mut_phi + phi_rotate_steps
 
@@ -169,10 +137,10 @@ let main argv =
         Console.Write(char_line_feed)
         printfn ("\x1b[H")
 
-        for screen_index in 0 .. (int screen_dim + 1) do
+        for screenXYPixelIndex in 0 .. (int screen_dim + 1) do
             let ch =
-                match screen_index with
-                | i when (screen_index % (int screen_width)) <> 0 -> mut_render_buff.[screen_index]
+                match screenXYPixelIndex with
+                | i when (screenXYPixelIndex % (int screen_width)) <> 0 -> mut_render_buff.[screenXYPixelIndex]
                 | _ -> char_line_feed
 
             Console.Write(ch)
@@ -181,7 +149,8 @@ let main argv =
 
         System.Threading.Thread.Sleep(300)
 
-        recMyWork ()    // recurse
-    recMyWork()
+        recMyWork () // recurse
+
+    recMyWork ()
 
     0
